@@ -176,6 +176,19 @@ def get_device_pulse_average(max_iteration_local, max_waveform_index_local, capt
     plt.show()
 
 
+def sweep_all_channels():
+
+    fig = 1
+    for frequency in np.arange(2.402e9, 2.480e9, 0.002e9):
+        capture_waveform(frequency, samp_rate, 2)
+        data = get_waveform_sample(0, -1, filename)
+        if get_greatest_real_waveform_value(data) >= 0.08:
+            display_data(data, fig)
+        fig = fig + 1
+
+    plt.show()
+
+
 filename = './data/BT_Capture_test.bin'
 
 max_iteration = 100
@@ -192,3 +205,8 @@ capture_time = 5
 
 get_device_pulse_average(max_iteration, max_waveform_index, capture_range, waveform_padding_range, pulse_width,
                          pulse_padding, filename, 1, center_frequency, samp_rate, capture_time)
+
+# sweep_all_channels()
+
+
+
