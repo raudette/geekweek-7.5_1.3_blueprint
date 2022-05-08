@@ -75,6 +75,65 @@ In terms of Tooling, the following Softwares are recommended (we performed all t
 	
    7. Perform steps 2 to 6 again with the second ESP32. Comparing the results obtained for the different ESP32's, you should note that there are distinct differences.
 
+## The Multivariate Gaussian Model Approach for Detection
+
+Adapted from:
+Suresh Chari, Josyula R. Rao, and Pankaj Rohatgi. Template Attacks. In
+Burton S. Kaliski Jr., C¸ etin Kaya Ko¸c, and Christof Paar, editors, Proceedings of CHES 2002, volume 2535 of LNCS, pages 13–28. Springer, 2003.
+
+The steps in developing a Gaussian model are as follows:
+
+1. Collect a large number L (typically one thousand) of samples on each K experimental device, {D<sub>1</sub>,... ,D<sub>K</sub>}.
+
+
+2. Compute the average signal M<sub>1</sub>,... ,M<sub>K</sub> for each of the experimental devices.
+
+
+3. Compute pairwise differences between the average signals M<sub>1</sub>,... ,M<sub>K</sub> to
+identify and select only points P<sub>1</sub>,... ,P<sub>N</sub> , at which large differences show
+up. The Gaussian model applies to these N points. This optional step significantly reduces the processing overhead with only a small loss of accuracy.
+
+
+4. For each operation O<sub>i</sub>, the N–dimensional noise vector for sample T is N<sub>i</sub>(T)
+= (T[P<sub>1</sub>] − M<sub>i</sub>[P<sub>1</sub>],... ,T[P<sub>N</sub>] − M<sub>i</sub>[P<sub>N</sub>]). Compute, the noise covariance
+matrix between all pairs of components of the noise vectors for experimental device D<sub>i</sub>
+using the noise vectors N<sub>i</sub>s for all the L samples. The entries of the covariance
+matrix ΣN<sub>i</sub> are defined as:
+
+
+<center>ΣN<sub>i</sub> [u, v] = cov(N<sub>i</sub>(P<sub>u</sub>), N<sub>i</sub>(P<sub>v</sub>))</center>
+
+
+Using this we compute the templates (M<sub>i</sub>, ΣN<sub>i</sub> ) for each of the K experimental devices. The
+signal for device D<sub>i</sub> is M<sub>i</sub> and the noise probability distribution is given by the
+N–dimensional multivariate Gaussian distribution pN<sub>i</sub>(·) where the probability
+of observing a noise vector n is:
+
+<center>pN<sub>i</sub>(n) = [1/√((2π)<sup>N</sup> |Σ<sub>Ni</sub>|)] exp((-1/2)n<sup>T</sup>Σ<sup>-1</sup><sub>Ni</sub>n), n∈ R<sup>N</sup></center>
+
+where |Σ<sub>Ni</sub>| denotes the determinant of Σ<sub>Ni</sub> and Σ<sup>−1</sup><sub>Ni</sub> is its inverse.
+
+In this model, the optimal technique to classify a sample S, is as follows: for
+each hypothesized operation O<sub>i</sub>, compute the probability of observing S if indeed
+it originated from D<sub>i</sub>. This probability is given by first computing the noise n in
+S using the mean signal M<sub>i</sub> in the template and then computing the probability
+of observing n using the expression for the noise probability distribution and
+the computed ΣN<sub>i</sub> from the template. If the noise was actually Gaussian, then
+the approach of selecting the D<sub>i</sub> with the highest probability is optimal.The
+probability of making errors in such a classification is also computable. If we
+use this approach to distinguish two devices D<sub>1</sub> and D<sub>2</sub> with the same noise
+characterization ΣN , the error probability is given by:
+
+For equally likely binary hypotheses, the error probability of error
+of maximum likelihood test is
+
+<center>P<sub>e</sub> = (1/2)erfc(∆/(2√2))</center>
+
+where ∆<sup>2</sup> = (M<sub>1</sub> − M<sub>2</sub>)<sup>T</sup> Σ<sup>−1</sup><sub>N</sub>(M<sub>1</sub> − M<sub>2</sub>) and erfc(x)=1 − erf(x).
+
+To implement the pruning process of the Blueprint, we deal with multiple hypotheses and bound the probability of classification errors by judiciously
+selecting a small subset of possible devices as most likely candidates.
+
 ## Future Work
 
 Since Blueprint is still in a proof-of-concept state of development, much work remains to be accomplished before an operational state is reached. Among the work to be performed:
