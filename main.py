@@ -12,7 +12,7 @@ import capture_sequence
 def sweep_all_channels():
     fig = 1
     for frequency in np.arange(2.402e9, 2.480e9, 0.002e9):
-        capture_sequence.capture_waveform(frequency, samp_rate, 2)
+        capture_sequence.capture_waveform(frequency, sample_rate, 2)
         data = capture_sequence.get_waveform_sample(0, -1, filename)
         if capture_sequence.get_greatest_real_waveform_value(data) >= 0.08:
             fig = plt.figure(fig, figsize=(5, 3.5))
@@ -29,10 +29,10 @@ def sweep_all_channels():
         plt.show()
 
 
-def capture_specific_frequency(center_frequency_local, samp_rate_local, capture_time_local, filename_local):
-    capture_sequence.capture_waveform(center_frequency_local, samp_rate_local, capture_time_local)
-    data = capture_sequence.get_waveform_sample(0, -1, filename_local)
-    fig = plt.figure(fig, figsize=(5, 3.5))
+def capture_specific_frequency(center_frequency, sample_rate, capture_time, filename):
+    capture_sequence.capture_waveform(center_frequency, sample_rate, capture_time)
+    data = capture_sequence.get_waveform_sample(0, -1, filename)
+    fig = plt.figure(1, figsize=(5, 3.5))
     x_r_1 = np.real(data)
     x_i_1 = np.imag(data)
     ax = fig.add_subplot(1, 1, 1)
@@ -110,16 +110,16 @@ def test_capture_trial(number_of_greatest_values, capture_device, capture_sample
 
 filename = './data/BT_Capture_test.bin'
 
-max_iteration = 100
+max_iteration = 10
 max_waveform_index = 160000
 capture_range = 500
 waveform_padding_range = 200
-waveform_min_threshold = 0.4
+waveform_min_threshold = 0.1
 max_num_of_zero_crossing = 500000
 pulse_width = 50
 pulse_padding = 20
-center_frequency = 2.402e9
-samp_rate = 5e6
+center_frequency = 2.426e9
+sample_rate = 5e6
 capture_time = 1
 
 number_of_greatest_values = 90
@@ -131,6 +131,12 @@ capture_sample = 50
 
 # sweep_all_channels()
 
-# capture_specific_frequency(center_frequency, samp_rate, capture_time, filename)
+# capture_specific_frequency(center_frequency, sample_rate, capture_time, filename)
 
-test_capture_trial(number_of_greatest_values, capture_device, capture_sample)
+# test_capture_trial(number_of_greatest_values, capture_device, capture_sample)
+
+capture_sequence.get_device_pulse_average(max_iteration, max_waveform_index, capture_range,
+                                          waveform_padding_range, waveform_min_threshold, max_num_of_zero_crossing,
+                                          pulse_width,
+                                          pulse_padding, filename, center_frequency,
+                                          sample_rate, capture_time)

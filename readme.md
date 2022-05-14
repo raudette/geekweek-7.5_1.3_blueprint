@@ -49,6 +49,10 @@ In terms of Tooling, the following Softwares are recommended (we performed all t
       2. Install the GNURadio Package within your working environment.
       
              $ pip install Freetail-GNURadio
+      
+      3. Install the Osmosdr package
+             
+             $ sudo apt install gr-osmosdr
 
    2. Place the first ESP32 about 1 cm away from the HackRF One's antenna.
 

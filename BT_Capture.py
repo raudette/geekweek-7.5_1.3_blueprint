@@ -5,19 +5,19 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: BT Capture
-# GNU Radio version: 3.8.1.0
+# Title: Testing
+# GNU Radio version: 3.9.5.0
 
 from gnuradio import blocks
 from gnuradio import gr
 from gnuradio.filter import firdes
+from gnuradio.fft import window
 import sys
 import signal
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
-import osmosdr
-import time
+from gnuradio import soapy
 
 
 class BT_Capture(gr.top_block):
@@ -28,24 +28,26 @@ class BT_Capture(gr.top_block):
         ##################################################
         # Variables
         ##################################################
-        self.samp_rate = samp_rate
-        self.center_frequency = center_frequency
+        self.sample_rate = sample_rate = 5e6
+        self.center_frequency = center_frequency = 2.402e9
 
         ##################################################
         # Blocks
         ##################################################
-        self.osmosdr_source_0 = osmosdr.source(
-            args="numchan=" + str(1) + " " + 'hackrf=000000000000000015d463dc389e8b25'
-        )
-        self.osmosdr_source_0.set_time_unknown_pps(osmosdr.time_spec_t())
-        self.osmosdr_source_0.set_sample_rate(samp_rate)
-        self.osmosdr_source_0.set_center_freq(center_frequency, 0)
-        self.osmosdr_source_0.set_freq_corr(0, 0)
-        self.osmosdr_source_0.set_gain(0, 0)
-        self.osmosdr_source_0.set_if_gain(20, 0)
-        self.osmosdr_source_0.set_bb_gain(20, 0)
-        self.osmosdr_source_0.set_antenna('', 0)
-        self.osmosdr_source_0.set_bandwidth(2e6, 0)
+        self.soapy_hackrf_source_0 = None
+        dev = 'driver=hackrf'
+        stream_args = ''
+        tune_args = ['']
+        settings = ['']
+
+        self.soapy_hackrf_source_0 = soapy.source(dev, "fc32", 1, '',
+                                  stream_args, tune_args, settings)
+        self.soapy_hackrf_source_0.set_sample_rate(0, samp_rate)
+        self.soapy_hackrf_source_0.set_bandwidth(0, 0)
+        self.soapy_hackrf_source_0.set_frequency(0, center_frequency)
+        self.soapy_hackrf_source_0.set_gain(0, 'AMP', False)
+        self.soapy_hackrf_source_0.set_gain(0, 'LNA', min(max(16, 0.0), 40.0))
+        self.soapy_hackrf_source_0.set_gain(0, 'VGA', min(max(16, 0.0), 62.0))
         self.blocks_file_sink_0 = blocks.file_sink(gr.sizeof_gr_complex * 1,
                                                    './data/BT_Capture_test.bin',
                                                    False)
@@ -54,12 +56,12 @@ class BT_Capture(gr.top_block):
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.osmosdr_source_0, 0), (self.blocks_file_sink_0, 0))
+        self.connect((self.soapy_hackrf_source_0, 0), (self.blocks_file_sink_0, 0))
 
-    def get_samp_rate(self):
+    def get_sample_rate(self):
         return self.samp_rate
 
-    def set_samp_rate(self, samp_rate):
+    def set_sample_rate(self, samp_rate):
         self.samp_rate = samp_rate
         self.osmosdr_source_0.set_sample_rate(self.samp_rate)
 
@@ -68,7 +70,7 @@ class BT_Capture(gr.top_block):
 
     def set_center_frequency(self, center_frequency):
         self.center_frequency = center_frequency
-        self.osmosdr_source_0.set_center_freq(self.center_frequency, 0)
+        self.soapy_hackrf_source_0.set_frequency(0, self.center_frequency)
 
 
 def main(top_block_cls=BT_Capture, options=None):
