@@ -12,8 +12,8 @@ import capture_sequence
 def sweep_all_channels():
     fig = 1
     for frequency in np.arange(2.402e9, 2.480e9, 0.002e9):
-        capture_sequence.capture_waveform(frequency, sample_rate, 2)
-        data = capture_sequence.get_waveform_sample(0, -1, filename)
+        capture_sequence.capture_waveform(frequency, sample_rate, 2, device_name)
+        data = capture_sequence.get_waveform_sample(0, -1, device_name)
         if capture_sequence.get_greatest_real_waveform_value(data) >= 0.08:
             fig = plt.figure(fig, figsize=(5, 3.5))
             x_r_1 = np.real(data)
@@ -29,33 +29,18 @@ def sweep_all_channels():
         plt.show()
 
 
-def capture_specific_frequency(center_frequency, sample_rate, capture_time, filename):
-    capture_sequence.capture_waveform(center_frequency, sample_rate, capture_time)
-    data = capture_sequence.get_waveform_sample(0, -1, filename)
-    fig = plt.figure(1, figsize=(5, 3.5))
-    x_r_1 = np.real(data)
-    x_i_1 = np.imag(data)
-    ax = fig.add_subplot(1, 1, 1)
-    ax.plot(x_r_1, 'b', label='real')
-    ax.plot(x_i_1, 'r', label='imag')
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.legend(loc='upper right')
-    ax.set_title('Scatter plot and line')
-    plt.show()
-
-
 def test_capture_trial(number_of_greatest_values, capture_device, capture_sample):
-    test_model = multi_gauss_model.MultiGaussModel(['./data/Model_Data/ESP1/ESP1_1/average_pulse.csv',
-                                                    './data/Model_Data/ESP2/ESP2_1/average_pulse.csv',
-                                                    './data/Model_Data/Tile/TILE_1/average_pulse.csv'], [
-                                                       './data/Model_Data/ESP1/ESP1_1/pulse_list_centered.csv',
-                                                       './data/Model_Data/ESP2/ESP2_1/pulse_list_centered.csv',
-                                                       './data/Model_Data/Tile/TILE_1/pulse_list_centered.csv'],
+
+    test_model = multi_gauss_model.MultiGaussModel(['./data/ESP1/average_pulse.csv',
+                                                    './data/ESP2/average_pulse.csv',
+                                                    './data/TILE/average_pulse.csv'], [
+                                                       './data/ESP1/pulse_list.csv',
+                                                       './data/ESP2/pulse_list.csv',
+                                                       './data/TILE/pulse_list.csv'],
                                                    number_of_greatest_values)
 
-    test_capture = validate_capture.ValidateCapture(test_model, test_model.device_pulse_centered[capture_device]
-                                                                [capture_sample][:])
+    test_capture = validate_capture.ValidateCapture(test_model, test_model.device_pulse_list[capture_device][
+                                                                    capture_sample][:])
 
     device_captured_probability_distribution = test_capture.device_captured_probability_distribution
 
@@ -86,8 +71,8 @@ def test_capture_trial(number_of_greatest_values, capture_device, capture_sample
     x_i_2 = np.imag(test_model.device_pulse_average[1])
     x_r_3 = np.real(test_model.device_pulse_average[2])
     x_i_3 = np.imag(test_model.device_pulse_average[2])
-    x_r_4 = np.real(test_model.device_pulse_centered[capture_device][capture_sample])
-    x_i_4 = np.imag(test_model.device_pulse_centered[capture_device][capture_sample])
+    x_r_4 = np.real(test_model.device_pulse_list[capture_device][capture_sample])
+    x_i_4 = np.imag(test_model.device_pulse_list[capture_device][capture_sample])
     ax_local = fig_local.add_subplot(2, 2, 1)
     ax_local.plot(x_r_1, 'b', label='real')
     ax_local.plot(x_i_1, 'r', label='imag')
@@ -108,35 +93,21 @@ def test_capture_trial(number_of_greatest_values, capture_device, capture_sample
     plt.show()
 
 
-filename = './data/BT_Capture_test.bin'
+device_name = 'TILE'
 
-max_iteration = 10
-max_waveform_index = 160000
-capture_range = 500
-waveform_padding_range = 200
-waveform_min_threshold = 0.1
-max_num_of_zero_crossing = 500000
-pulse_width = 50
-pulse_padding = 20
+max_iteration = 1
+capture_time = 5  # (Takes capture_time * sample_rate) Number of 64 bit (32 real, 32 imag) points
+capture_device = 0
+
+sample_rate = 20e6
 center_frequency = 2.426e9
-sample_rate = 5e6
-capture_time = 1
 
-number_of_greatest_values = 90
-capture_device = 2
-capture_sample = 50
+waveform_min_threshold = 0.1
 
-# get_device_pulse_average(max_iteration, max_waveform_index, capture_range, waveform_padding_range, pulse_width,
-# pulse_padding, filename, 1, center_frequency, samp_rate, capture_time)
+number_of_greatest_values = 150  # points to take for Gaussian compare
+capture_sample = 300
+test_capture_trial(number_of_greatest_values, capture_device, capture_sample)
 
-# sweep_all_channels()
+# test_sequence = capture_sequence.CaptureSequence(max_iteration, waveform_min_threshold, device_name, center_frequency,
+#                                                  sample_rate, capture_time)
 
-# capture_specific_frequency(center_frequency, sample_rate, capture_time, filename)
-
-# test_capture_trial(number_of_greatest_values, capture_device, capture_sample)
-
-capture_sequence.get_device_pulse_average(max_iteration, max_waveform_index, capture_range,
-                                          waveform_padding_range, waveform_min_threshold, max_num_of_zero_crossing,
-                                          pulse_width,
-                                          pulse_padding, filename, center_frequency,
-                                          sample_rate, capture_time)

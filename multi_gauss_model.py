@@ -3,28 +3,49 @@ import numpy as np
 
 class MultiGaussModel:
 
-    def __init__(self, device_pulse_average_files, device_pulse_centered_files, number_of_greatest_values):
+    def __init__(self, device_pulse_average_files, device_pulse_list_files, number_of_greatest_values):
         self.device_pulse_average_files = device_pulse_average_files
-        self.device_pulse_centered_files = device_pulse_centered_files
+        self.device_pulse_list_files = device_pulse_list_files
         self.number_of_greatest_values = number_of_greatest_values
 
-        self.device_pulse_average = np.empty((3, 90), np.complex64)
-        self.device_pulse_centered = np.empty((3, 100, 90), np.complex64)
+        self.csv_size = view_csv_capture(device_pulse_list_files[0])
+
+        self.device_pulse_average = np.empty((3, self.csv_size.shape[1]), np.complex64)
+        self.device_pulse_list = np.empty((3, self.csv_size.shape[0], self.csv_size.shape[1]), np.complex64)
 
         for device in range(len(device_pulse_average_files)):
             self.device_pulse_average[device][:] = np.loadtxt(device_pulse_average_files[device],
                                                               dtype=np.complex128).view(complex)
+            self.device_pulse_average[device][:] = normalize_waveform(self.device_pulse_average[device][:])
 
-        for device in range(len(device_pulse_centered_files)):
-            self.device_pulse_centered[device][:][:] = np.loadtxt(device_pulse_centered_files[device],
-                                                                  delimiter=",", dtype=np.complex128).view(complex)
+        for device in range(len(device_pulse_list_files)):
+            self.device_pulse_list[device][:][:] = np.loadtxt(device_pulse_list_files[device],
+                                                              delimiter=",", dtype=np.complex128).view(complex)
+            self.device_pulse_list[device][:][:] = normalize_waveform_list(self.device_pulse_list[device][:][:])
 
         self.points_of_large_difference = find_best_points_to_compare(self.device_pulse_average,
                                                                       self.number_of_greatest_values)
 
         self.device_covariance_matrix = get_optimal_noise_covariance_matrix(self.device_pulse_average,
                                                                             self.points_of_large_difference,
-                                                                            self.device_pulse_centered)
+                                                                            self.device_pulse_list)
+
+
+def normalize_waveform(waveform):
+    normalized_waveform = waveform - waveform.real.min() - 1j * waveform.imag.min()
+    if(np.abs(normalized_waveform).max() == 0):
+        test = 1
+    return normalized_waveform/np.abs(normalized_waveform).max()
+
+
+def normalize_waveform_list(waveform_list):
+    for waveform in range(len(waveform_list[:][0])):
+        waveform_list[waveform][:] = normalize_waveform(waveform_list[waveform][:])
+    return waveform_list
+
+
+def view_csv_capture(filename):
+    return np.loadtxt(filename, delimiter=",", dtype=np.complex128).view(complex)
 
 
 def find_best_points_to_compare(device_pulse_average, number_of_greatest_values):

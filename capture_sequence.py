@@ -1,154 +1,99 @@
 import numpy as np
-import scipy
-from scipy import signal
 import time
 import BT_Capture
+import matplotlib.pyplot as plt
 
 
 class CaptureSequence:
 
-    def __init__(self, max_iteration, max_waveform_index, capture_range,
-                 waveform_padding_range, waveform_min_threshold, max_num_of_zero_crossing, pulse_width,
-                 pulse_padding, filename, center_frequency,
-                 sample_rate, capture_time):
-
+    def __init__(self, max_iteration, waveform_min_threshold, device_name, center_frequency, sample_rate, capture_time):
         self.max_iteration = max_iteration
-        self.max_waveform_index = max_waveform_index
-        self.capture_range = capture_range
-        self.waveform_padding_range = waveform_padding_range
+        self.waveform_preamble = int(sample_rate / 4e5)
+        self.waveform_padding = int(sample_rate / 8e4)
         self.waveform_min_threshold = waveform_min_threshold
-        self.max_num_of_zero_crossing = max_num_of_zero_crossing
-        self.pulse_width = pulse_width
-        self.pulse_padding = pulse_padding
-        self.filename = filename
+        self.device_name = device_name
         self.center_frequency = center_frequency
         self.sample_rate = sample_rate
         self.capture_time = capture_time
 
+        [average_pulse, pulse_list] = get_device_pulse_average(self.max_iteration, self.waveform_min_threshold, self.
+                                                               device_name, self.center_frequency, self.sample_rate,
+                                                               self.capture_time, self.waveform_preamble, self.
+                                                               waveform_padding)
 
-def number_of_zero_crossing(waveform):
-    zero_crossings = np.where(np.diff(np.sign(np.real(waveform))))[0]
-    return zero_crossings.size
+        np.savetxt("./data/" + device_name + "/average_pulse.csv", average_pulse, delimiter=",")
+
+        fig = plt.figure(1, figsize=(5, 3.5))
+        x_r_1 = np.real(average_pulse)
+        x_i_1 = np.imag(average_pulse)
+        ax = fig.add_subplot(1, 1, 1)
+        ax.plot(x_r_1, 'b', label='real')
+        ax.plot(x_i_1, 'r', label='imag')
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.legend(loc='upper right')
+        ax.set_title('Scatter plot and line')
 
 
-def get_waveform_sample(current_waveform_index, capture_range_local, filename_local):
-    return np.fromfile(open(filename_local), dtype=np.complex64,
-                       offset=(current_waveform_index * capture_range_local),
-                       count=capture_range_local)
-
-
-def get_pulse(current_waveform_index, capture_range_local, waveform_padding_range_local, current_sample,
-              filename_local):
-    padding_sample = np.fromfile(open(filename_local), dtype=np.complex64, offset=(current_waveform_index + 8) *
-                                                                                  capture_range_local,
-                                 count=waveform_padding_range_local)
-    return np.concatenate((current_sample, padding_sample), dtype=np.complex64)
+def get_waveform_sample(current_waveform, capture_range, filename):
+    return np.fromfile(open(filename), dtype=np.complex64, offset=current_waveform,
+                       count=capture_range)
 
 
 def get_greatest_real_waveform_value(waveform):
     return np.amax(np.real(waveform))
 
 
-def is_waveform_null(waveform):
-    if np.size(waveform) == 0:
-        return True
-    else:
-        return False
-
-
-def capture_waveform(center_frequency_local, samp_rate_local, capture_time_local):
-    btc = BT_Capture.BT_Capture(center_frequency_local, samp_rate_local)
+def capture_waveform(center_frequency_local, sample_rate_local, capture_time_local, device_name):
+    btc = BT_Capture.BT_Capture(center_frequency_local, sample_rate_local, device_name)
     btc.start()
     time.sleep(capture_time_local)
     btc.stop()
-    btc.wait()
+    # btc.wait()
 
 
-def find_pulse(max_waveform_index_local, capture_range_local, waveform_padding_range_local,
-               waveform_min_threshold_local,
-               max_num_of_zero_crossing_local, filename_local):
-    for waveform_index in range(max_waveform_index_local):
-        first_sample = get_waveform_sample(waveform_index, capture_range_local, filename_local)
-        if not is_waveform_null(first_sample):
-            if get_greatest_real_waveform_value(first_sample) >= waveform_min_threshold_local:
-                if number_of_zero_crossing(first_sample) < max_num_of_zero_crossing_local:
-                    pulse = get_pulse(waveform_index, capture_range_local, waveform_padding_range_local,
-                                      first_sample,
-                                      filename_local)
-                    return [True, pulse]
+def get_pulse_average(pulse_list, pulse_width):
+    pulse_sum = np.zeros(pulse_width, dtype=np.complex64)
+    for current_pulse in range(len(pulse_list[:])):
+        pulse_sum = pulse_sum + pulse_list[current_pulse]
 
-    return [False, 0]
-
-
-def center_pulse(pulse, capture_range_local, waveform_padding_range_local, pulse_width_local,
-                 pulse_padding_local):
-    hann_window = signal.windows.hann(pulse_width_local)
-
-    convoluted_signal = scipy.signal.convolve(pulse, hann_window, mode='same',
-                                              method='direct')
-
-    convolution_max = np.where(convoluted_signal == np.amax(convoluted_signal))
-    if len(convolution_max[0]) > 1:
-        return False
-    pulse_center = int(convolution_max[0])
-    if ((capture_range_local + waveform_padding_range_local) - (
-            (pulse_width_local / 2) + pulse_padding_local)) >= \
-            pulse_center >= ((pulse_width_local / 2) + pulse_padding_local):
-        centered_pulse = pulse[int(pulse_center - ((pulse_width_local / 2) + pulse_padding_local)):int(
-            pulse_center + ((pulse_width_local / 2) + pulse_padding_local))]
-    else:
-        return [False, 0]
-
-    return [True, centered_pulse]
-
-
-def get_pulse_average(pulse_list_local, num_pulse, pulse_width_local, pulse_padding_local):
-    pulse_sum = np.zeros(pulse_width_local + (pulse_padding_local * 2), dtype=np.complex64)
-    for current_pulse in range(num_pulse):
-        pulse_sum = pulse_sum + pulse_list_local[current_pulse]
-
-    average_pulse_local = pulse_sum / num_pulse
+    average_pulse_local = pulse_sum / len(pulse_list[:])
 
     return average_pulse_local
 
 
-def get_device_pulse_average(max_iteration, max_waveform_index, capture_range,
-                             waveform_padding_range, waveform_min_threshold, max_num_of_zero_crossing, pulse_width,
-                             pulse_padding, filename, center_frequency,
-                             sample_rate, capture_time):
-    pulse_list = np.empty((max_iteration, capture_range + waveform_padding_range), np.complex64)
-    pulse_list_centered = np.empty((max_iteration, pulse_width + (pulse_padding * 2)), np.complex64)
+def find_pulse(waveform_min_threshold, waveform_preamble, waveform_padding, device_name):
+    sample = get_waveform_sample(0, -1, "./data/" + device_name + "/capture.bin")
+    first_rise = np.where(abs(sample) > waveform_min_threshold)
+    if len(first_rise[0]) >= 1:
+        if first_rise[0][0] > 6000:
+            pulse = sample[first_rise[0][0] - waveform_preamble:first_rise[0][0] + waveform_padding]
+            return [True, pulse]
+
+    return [False, range(waveform_preamble + waveform_padding)]
+
+
+def get_device_pulse_average(max_iteration, waveform_min_threshold, device_name, center_frequency, sample_rate,
+                             capture_time, waveform_preamble, waveform_padding):
+    pulse_list = np.empty((max_iteration, waveform_preamble + waveform_padding), np.complex64)
 
     current_iteration = 0
     while current_iteration < max_iteration:
         print("Iteration: ")
         print(current_iteration)
-        capture_waveform(center_frequency, sample_rate, capture_time)
-        # see_waveform(0, -1, filename_local, 2)
-        # plt.show()
+        capture_waveform(center_frequency, sample_rate, capture_time, "./data/" + device_name + "/capture.bin")
 
-        [is_pulse, pulse_list[current_iteration]] = find_pulse(max_waveform_index, capture_range,
-                                                               waveform_padding_range,
-                                                               waveform_min_threshold,
-                                                               max_num_of_zero_crossing, filename)
-        if is_pulse:
-            [is_pulse_centered, pulse_list_centered[current_iteration]] = center_pulse(
-                pulse_list[current_iteration],
-                capture_range,
-                waveform_padding_range,
-                pulse_width,
-                pulse_padding)
-            if not is_pulse_centered:
-                current_iteration = current_iteration - 1
-                print("Pulse Ignored")
-        else:
+        [is_pulse, pulse_list[current_iteration]] = find_pulse(waveform_min_threshold, waveform_preamble,
+                                                               waveform_padding, device_name)
+        if not is_pulse:
             current_iteration = current_iteration - 1
             print("Pulse Ignored")
+        else:
+            with open("./data/" + device_name + "/pulse_list.csv", 'a') as csvfile:
+                np.savetxt(csvfile, pulse_list[[current_iteration]], delimiter=",")
+
         current_iteration = current_iteration + 1
 
-    average_pulse = get_pulse_average(pulse_list_centered, max_iteration, pulse_width,
-                                      pulse_padding)
+    average_pulse = get_pulse_average(pulse_list, waveform_preamble + waveform_padding)
 
-    np.savetxt("pulse_list.csv", pulse_list, delimiter=",")
-    np.savetxt("pulse_list_centered.csv", pulse_list_centered, delimiter=",")
-    np.savetxt("average_pulse.csv", average_pulse, delimiter=",")
+    return [average_pulse, pulse_list]
