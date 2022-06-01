@@ -16,23 +16,10 @@ class CaptureSequence:
         self.sample_rate = sample_rate
         self.capture_time = capture_time
 
-        [average_pulse, pulse_list] = get_device_pulse_average(self.max_iteration, self.waveform_min_threshold, self.
-                                                               device_name, self.center_frequency, self.sample_rate,
-                                                               self.capture_time, self.waveform_preamble, self.
-                                                               waveform_padding)
-
-        np.savetxt("./data/" + device_name + "/average_pulse.csv", average_pulse, delimiter=",")
-
-        fig = plt.figure(1, figsize=(5, 3.5))
-        x_r_1 = np.real(average_pulse)
-        x_i_1 = np.imag(average_pulse)
-        ax = fig.add_subplot(1, 1, 1)
-        ax.plot(x_r_1, 'b', label='real')
-        ax.plot(x_i_1, 'r', label='imag')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.legend(loc='upper right')
-        ax.set_title('Scatter plot and line')
+        [average_pulse, pulse_list] = get_device_pulse_list(self.max_iteration, self.waveform_min_threshold, self.
+                                                            device_name, self.center_frequency, self.sample_rate,
+                                                            self.capture_time, self.waveform_preamble, self.
+                                                            waveform_padding)
 
 
 def get_waveform_sample(current_waveform, capture_range, filename):
@@ -73,8 +60,8 @@ def find_pulse(waveform_min_threshold, waveform_preamble, waveform_padding, devi
     return [False, range(waveform_preamble + waveform_padding)]
 
 
-def get_device_pulse_average(max_iteration, waveform_min_threshold, device_name, center_frequency, sample_rate,
-                             capture_time, waveform_preamble, waveform_padding):
+def get_device_pulse_list(max_iteration, waveform_min_threshold, device_name, center_frequency, sample_rate,
+                          capture_time, waveform_preamble, waveform_padding):
     pulse_list = np.empty((max_iteration, waveform_preamble + waveform_padding), np.complex64)
 
     current_iteration = 0
@@ -94,6 +81,4 @@ def get_device_pulse_average(max_iteration, waveform_min_threshold, device_name,
 
         current_iteration = current_iteration + 1
 
-    average_pulse = get_pulse_average(pulse_list, waveform_preamble + waveform_padding)
-
-    return [average_pulse, pulse_list]
+    return [pulse_list]

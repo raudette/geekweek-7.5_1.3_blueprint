@@ -3,8 +3,7 @@ import numpy as np
 
 class MultiGaussModel:
 
-    def __init__(self, device_pulse_average_files, device_pulse_list_files, number_of_greatest_values):
-        self.device_pulse_average_files = device_pulse_average_files
+    def __init__(self, device_pulse_list_files, number_of_greatest_values):
         self.device_pulse_list_files = device_pulse_list_files
         self.number_of_greatest_values = number_of_greatest_values
 
@@ -13,15 +12,15 @@ class MultiGaussModel:
         self.device_pulse_average = np.empty((3, self.csv_size.shape[1]), np.complex64)
         self.device_pulse_list = np.empty((3, self.csv_size.shape[0], self.csv_size.shape[1]), np.complex64)
 
-        for device in range(len(device_pulse_average_files)):
-            self.device_pulse_average[device][:] = np.loadtxt(device_pulse_average_files[device],
-                                                              dtype=np.complex128).view(complex)
-            self.device_pulse_average[device][:] = normalize_waveform(self.device_pulse_average[device][:])
-
         for device in range(len(device_pulse_list_files)):
             self.device_pulse_list[device][:][:] = np.loadtxt(device_pulse_list_files[device],
                                                               delimiter=",", dtype=np.complex128).view(complex)
             self.device_pulse_list[device][:][:] = normalize_waveform_list(self.device_pulse_list[device][:][:])
+
+        for device in range(len(device_pulse_list_files)):
+            self.device_pulse_average[device][:] = get_pulse_average(self.device_pulse_list[device][:][:], self.csv_size
+                                                                     .shape[1])
+            self.device_pulse_average[device][:] = normalize_waveform(self.device_pulse_average[device][:])
 
         self.points_of_large_difference = find_best_points_to_compare(self.device_pulse_average,
                                                                       self.number_of_greatest_values)
@@ -31,10 +30,21 @@ class MultiGaussModel:
                                                                             self.device_pulse_list)
 
 
+def get_pulse_average(pulse_list, pulse_width):
+    pulse_sum = np.zeros(pulse_width, dtype=np.complex64)
+    for current_pulse in range(len(pulse_list[:])):
+        pulse_sum = pulse_sum + pulse_list[current_pulse]
+
+    average_pulse_local = pulse_sum / len(pulse_list[:])
+
+    return average_pulse_local
+
+
 def normalize_waveform(waveform):
     normalized_waveform = waveform - waveform.real.min() - 1j * waveform.imag.min()
-    if(np.abs(normalized_waveform).max() == 0):
-        test = 1
+    if np.abs(normalized_waveform).max() == 0:
+        print("ERROR: Division by zero")
+        return 0
     return normalized_waveform/np.abs(normalized_waveform).max()
 
 
